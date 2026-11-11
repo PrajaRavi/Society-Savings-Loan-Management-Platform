@@ -21,13 +21,11 @@ Make community-based savings and lending easier to administer, auditable, fair, 
 
 ### 1.2 Goals
 
-- Allow multiple societies to operate independently with strict tenant isolation.
-- Enforce Super Admin-governed society onboarding: prospective societies submit verification documents offline/online, and only Platform Super Admin can create and provision society accounts.
-- Use Google Auth (Google OAuth 2.0 / OpenID Connect) for secure, unified platform authentication.
-- Implement an annual SaaS subscription model for societies based on the number of members.
+- Allow multiple societies to onboard and operate independently.
 - Allow a society to configure its committee structure and invite members.
-- Enforce invitation-only registration for society membership (no public sign-ups into societies).
-- Support one user belonging to multiple societies under a single Google identity.
+- Enforce invitation-only registration for society membership.
+- Support one user belonging to multiple societies.
+- Collect and track monthly platform fees and society contributions as separate obligations.
 - Maintain a society-level fund balance using a double-entry or equivalently auditable ledger.
 - Let societies define loan rules and a configurable interest rate.
 - Process loan requests through a visible FIFO queue, with clearly defined eligibility and approval rules.
@@ -36,7 +34,6 @@ Make community-based savings and lending easier to administer, auditable, fair, 
 
 ### 1.3 Non-goals for the first release
 
-- Public self-service society creation (all societies must be verified and provisioned by the Platform Super Admin).
 - Lending money from the platform operator's own balance sheet.
 - Combining the funds of different societies.
 - Public self-registration into a society without an invitation.
@@ -51,17 +48,17 @@ Make community-based savings and lending easier to administer, auditable, fair, 
 
 The initial description says members pay a fixed amount every month “to us” and that the society's total amount is maintained for lending. This needs to be represented as two separate configurable payment types:
 
-### A. Platform subscription fee (Annual SaaS Plan)
+### A. Platform subscription fee
 
-- Paid by the society to the platform operator on an annual subscription basis.
-- Pricing is calculated based on the number of members in the society (e.g. member count tiers such as 1–50 members, 51–100 members, or a per-member annual rate).
-- This is SaaS revenue for the platform operator.
-- It is strictly excluded from the society's loanable fund.
-- Managed and provisioned by the Platform Super Admin upon society onboarding and renewed annually.
+- Paid by a society, its members, or another configured payer to the platform operator.
+- This is SaaS revenue.
+- It is not part of the society's loanable fund.
+- The payer model must be configurable: society-level subscription, per-active-member subscription, or another approved pricing plan.
+- If the business decision is that every member pays the platform directly, create a separate platform-fee obligation for every member.
 
 ### B. Society contribution
 
-- Paid by a member to their society (typically on a recurring monthly cycle).
+- Paid by a member to their society.
 - Credited to that society's fund only after payment is confirmed.
 - Used for society-approved purposes, including member loans.
 - Must be recorded in the society's ledger and never treated as platform revenue.
@@ -74,14 +71,14 @@ The society's displayed available fund should be calculated from its ledger, not
 
 ## 3. Users, roles, and permissions
 
-Platform authentication is powered by **Google Auth** (Google OAuth 2.0 / OpenID Connect). A user authenticates once with their Google account to obtain a platform identity. Roles and permissions are then assigned per society membership. A user can be President in Society A and an ordinary Member in Society B.
+Roles are assigned per society membership. A user can be President in Society A and an ordinary Member in Society B.
 
 ### 3.1 Platform-level roles
 
 | Role | Responsibilities |
 |---|---|
-| Platform Super Admin | Operates the SaaS platform; reviews prospective society requests and verification documents; creates society accounts; provisions initial committee administrator access/credentials; configures annual subscription plans based on member counts; manages platform configuration and audit logs. Only this role can create new societies. |
-| Platform Finance/Operations | Reconciles annual platform subscription payments, manages platform SaaS invoices, and tracks subscription renewals. |
+| Platform Super Admin | Operates the SaaS platform, manages platform configuration, support, subscription plans, and platform-level controls. |
+| Platform Finance/Operations | Reconciles platform subscription payments, manages platform invoices and refunds where permitted. |
 | Platform Support | Helps users with account and technical issues. Access to society financial data should be restricted and audited. |
 
 Platform staff must not be able to silently change a society's fund, approve a society loan, or alter its lending policy.
@@ -132,54 +129,43 @@ The society may configure approval thresholds and permitted actions, but the sys
 
 ## 5. End-to-end product workflow
 
-### 5.1 Platform onboarding and authentication (Google Auth)
+### 5.1 Platform onboarding
 
-1. A person visits the platform web application.
-2. The user authenticates using **Google Auth** (`Sign in with Google` via Google OAuth 2.0 / OpenID Connect).
-3. The platform retrieves and verifies the user's Google profile (Google Subject ID `sub`, verified email, full name, and avatar).
-4. If this is the user's first login, the platform provisions a global platform user record tied to their Google ID.
-5. The user lands on the platform dashboard:
-   - If the user has existing society memberships, they see their active societies in the society switcher.
-   - If the user clicked a valid society invitation link, the system transitions directly to the invitation acceptance flow.
-   - If the user has no invitations and no memberships, they cannot browse or join societies publicly; they see an informative landing page with options to check pending invitations or submit an onboarding inquiry to platform sales/super admin.
-6. Regular users **cannot** self-create a society. All society creation is strictly controlled by the Platform Super Admin.
+1. A person visits the platform.
+2. The person creates a platform account using the supported authentication method.
+3. The platform verifies their email address or phone number.
+4. The user lands on a dashboard.
+5. If the user has no society invitation or existing membership, they cannot join a society by selecting it from a public directory.
+6. The user can create a society if the platform allows society creation, or accept an invitation sent by an existing society.
+7. A user who belongs to multiple societies sees all active memberships in one account.
 
-**Important:** Creating a platform login and becoming a member of a society remain separate actions. A person authenticates via Google to establish platform identity, while society membership is granted exclusively via invitation or Super Admin provisioning.
+**Important:** Creating a platform login and becoming a member of a society are separate actions. A person may have a platform account without belonging to any society.
 
-### 5.2 Society onboarding and Super Admin creation workflow
+### 5.2 Society creation and setup
 
-Prospective societies cannot self-register online. Society onboarding follows an assisted, verified administrative process:
+1. An authorized user selects **Create Society**.
+2. They enter society details:
+   - Legal/registered name
+   - Display name
+   - Registration number, where applicable
+   - Address and jurisdiction
+   - Contact details
+   - Society type
+   - Currency
+   - Time zone
+   - Financial year start
+3. The creator verifies the required contact information and accepts the platform terms.
+4. The platform creates a tenant/society workspace with a unique society ID.
+5. The creator becomes the initial society administrator or the configured founding role.
+6. The society sets its committee structure and assigns President, Vice President, Secretary, and Treasurer.
+7. The society configures contribution rules, loan policy, interest rate, approval workflow, and notification preferences.
+8. The society completes any required verification or compliance checks before financial features are enabled.
 
-1. **Inquiry & Document Collection:**
-   - A representative of the prospective society contacts the platform team (via the website's onboarding inquiry form or direct outreach).
-   - The Platform Super Admin collects required society details and verification documents:
-     - Society legal registered name, registration certificate/act number, date of registration, and address.
-     - Jurisdiction, operational currency, and financial year start date.
-     - Contact details of authorized representatives and signatories.
-     - Identity and address verification (KYC) for key office bearers (e.g. President, Secretary, Treasurer).
-     - Expected member count (to determine the appropriate annual subscription tier).
-2. **Super Admin Review & Due Diligence:**
-   - The Platform Super Admin inspects the submitted documentation, confirms compliance, and validates signatory authorization.
-3. **Workspace Provisioning by Super Admin:**
-   - The Super Admin logs into the dedicated **Super Admin Portal** and executes **Create Society**:
-     - Enters verified society metadata (legal name, registration number, address, currency, time zone).
-     - Selects the **Annual Subscription Plan** based on the agreed member count tier (setting the maximum active member threshold).
-     - Records payment/invoice reference for the initial annual SaaS subscription fee.
-     - Enters the primary society administrator's name and authorized **Google account email address**.
-     - Generates and activates the society workspace (unique `society_id`).
-4. **Credential & Access Handover:**
-   - The platform creates the society and pre-provisions the primary administrator's membership with administrative privileges.
-   - The platform sends an official onboarding confirmation email to the society administrator.
-   - The society administrator visits the platform, clicks **Sign in with Google** using their registered Google account, and immediately accesses their new society administration dashboard.
-5. **Initial Society Governance Setup:**
-   - The society administrator sets up committee roles (assigning or inviting President, Vice President, Secretary, and Treasurer).
-   - The committee configures the society's recurring contribution rules, loan policy, interest rate, and approval rules.
-
-A society cannot collect contributions or disburse loans until its setup, authorized signatories, and compliance checks are verified and activated by the Super Admin.
+A society must not be allowed to lend funds until its required setup, authorized signatories, and applicable verification checks are complete.
 
 ### 5.3 Committee setup
 
-- The initial society administrator can invite committee members and assign positions (President, Vice President, Secretary, Treasurer).
+- The creator can assign existing invited users or invite new people to committee positions.
 - The society should support one or more office holders per role if its constitution permits.
 - Role assignment has an effective date and, optionally, an end date.
 - Committee members are also society members if the society's rules require it.
@@ -190,33 +176,33 @@ A society cannot collect contributions or disburse loans until its setup, author
 
 **Invitation sources:** President, Vice President, Secretary, Treasurer, or another role authorized by the society.
 
-1. An authorized officer opens **Invite Member** in the society workspace.
-2. They enter the invitee's email address (which must correspond to the invitee's Google account email) and optionally their name or member reference.
+1. An authorized officer opens **Invite Member**.
+2. They enter the invitee's email address or phone number and optionally name/member reference.
 3. They select the intended society role (normally Member) and any permitted initial settings.
-4. The system validates that the society has not exceeded its **annual subscription member limit**. If the member limit has been reached, the system alerts the committee to upgrade their annual plan via Super Admin.
-5. The platform generates a unique, cryptographically random, single-use invitation token.
-6. The invitation is recorded with:
+4. The platform generates a unique, random, single-use invitation token.
+5. The invitation is linked to:
    - Society ID
-   - Invited Google email
+   - Invited contact
    - Intended role
    - Inviter user ID
-   - Expiry time (e.g., 7 days)
-   - Invitation status (Pending)
-7. The invitee receives a secure invitation link via email.
-8. The invitee clicks the link and authenticates using **Google Auth** (`Sign in with Google`).
-9. The platform verifies that the authenticated Google account email matches the invited email address.
-10. The platform verifies that the invitation token is valid, unexpired, and unused.
-11. The platform creates the `society_membership` record and attaches the intended society role.
-12. The invitation is marked `Accepted` and can never be reused.
-13. The member is immediately redirected to the society workspace and can view the society in their society switcher.
+   - Expiry time
+   - Invitation status
+6. The invitee receives a secure invitation link or code.
+7. The invitee opens the link and verifies control of the invited email/phone.
+8. If the invitee already has a platform account, they authenticate and accept the invitation.
+9. If the invitee does not have an account, they create one and verify the contact method.
+10. The platform checks that the token is valid, unexpired, unused, and intended for the verified contact.
+11. The platform creates a society membership and attaches the society-specific role.
+12. The invitation is marked accepted and cannot be reused.
+13. The member receives access to the society workspace.
 
 **Security requirements:**
-- No public endpoint may create an active society membership without a valid invitation or Super Admin provisioning.
+- No public endpoint may create an active society membership without a valid invitation or an explicitly approved administrative process.
 - Invitation tokens must be unguessable, single-use, revocable, and time-limited.
-- The invitee's authenticated Google email must match the invitation destination email.
+- The invitee's verified contact must match the invitation destination, unless an authorized officer updates and reissues it.
 - The system must prevent duplicate active memberships for the same user and society.
 - The society can revoke or resend pending invitations.
-- Invitation acceptance, rejection, expiry, and revocation must be fully auditable.
+- Invitation acceptance, rejection, expiry, and revocation must be auditable.
 
 ### 5.5 One user, multiple societies
 
@@ -279,6 +265,8 @@ Contribution statuses:
 - Waived
 - Failed
 - Refunded/Reversed
+
+> waiver->In simple words, the member's pending contribution is forgiven by the society.
 
 A waiver requires a reason and the configured approval. Waiving a contribution does not create money in the society fund.
 
@@ -529,59 +517,57 @@ Channels may include in-app notifications, email, and SMS/WhatsApp through appro
 ## 6. Core screens
 
 ### Public / account
-- Landing page (Platform value proposition, security, compliance, and "Request Society Onboarding / Contact Sales" inquiry form)
-- Authentication: Google Sign-In (`Sign in with Google`)
-- Invitation acceptance flow (matching Google email with invitation token)
-- User profile & linked Google account
+- Landing page
+- Sign up / sign in
+- Verify email or phone
+- Invitation acceptance
+- Forgot password / account recovery
 
-### Platform administration (Super Admin Portal)
-- Society directory (search, filter, view status, active member counts)
-- Inbound society onboarding requests & document verification repository
-- **Create Society modal / wizard**:
-  - Enter verified society legal details & jurisdiction
-  - Select **Annual Subscription Plan** (member count tier and pricing)
-  - Set member capacity limit
-  - Provision initial society administrator credentials / assign authorized Google email
-- Platform subscription plans management (annual pricing, member limits)
-- Platform SaaS billing, invoices, and renewal tracking
-- Platform support and tenant audit logs
-- System health and configuration
-
-### Society setup & governance (Committee Portal)
-- Society profile & settings (view verified registration details, update display info)
-- Committee structure and role assignments (President, Vice President, Secretary, Treasurer)
-- Subscription status & member limit gauge (e.g. 42 / 50 members utilized)
-- Contribution policy configuration
-- Loan policy and interest rate configuration
-- Approval workflows and dual-authorization rules
-- Society payment & bank settlement configuration
+### Society setup
+- Create society
+- Society profile
+- Verification and authorized signatories
+- Committee and role assignment
+- Contribution policy
+- Loan policy
+- Approval workflow
+- Payment configuration
 
 ### Society workspace
 - Overview dashboard
-- Members & active roster
-- Invitations (with member capacity validation)
-- Committee management
-- Contributions & billing
-- Fund / ledger & bank balance
+- Members
+- Invitations
+- Committee
+- Contributions
+- Fund / ledger
 - Loan applications
 - FIFO loan queue
 - Active loans
-- Repayments & waterfall allocations
-- Financial reports & registers
-- Notices & announcements
-- Society audit log
+- Repayments
+- Reports
+- Notices
+- Audit log
 - Society settings
 
 ### Member workspace
-- My societies & Society switcher
-- My profile & membership status
-- My monthly contributions (due / paid / receipts)
+- My societies
+- Society switcher
+- My profile and membership
+- My contributions
 - Apply for loan
-- My loan queue status (exact position, eligibility timestamp)
-- My active loans & repayment schedule
-- Repayment checkout & transaction history
-- Downloadable statements and receipts
-- Notifications & alerts
+- My loan queue status
+- My loans
+- Repayments
+- Statements and receipts
+- Notifications
+
+### Platform administration
+- Society directory (internal/admin only)
+- Platform subscription plans
+- Platform billing and invoices
+- Account support
+- Verification review
+- System health and audit access
 
 ---
 
@@ -589,31 +575,18 @@ Channels may include in-app notifications, email, and SMS/WhatsApp through appro
 
 Use a relational database such as PostgreSQL. All society-owned records must include `society_id` either directly or through a strongly enforced parent relationship.
 
-### 7.1 Identity, onboarding, and membership
+### 7.1 Identity and membership
 
-**onboarding_requests** (prospective societies submitting for Super Admin verification)
+**users**
 - id
-- society_name
-- contact_person_name
-- contact_email
-- contact_phone
-- approx_member_count
-- registration_details
-- documents_metadata_json (links to uploaded verification documents in secure object storage)
-- status (`submitted`, `under_review`, `approved`, `rejected`)
-- reviewed_by_super_admin_id
-- created_at
-
-**users** (authenticated exclusively via Google Auth)
-- id
-- google_id (unique, OpenID `sub` claim)
 - full_name
-- email (unique, verified via Google)
-- avatar_url
-- account_status (`active`, `suspended`)
-- is_super_admin (boolean, flags platform-level super admins)
+- email (unique where present)
+- phone (unique where present)
+- password_hash / identity_provider_id
+- email_verified_at
+- phone_verified_at
+- account_status
 - created_at
-- updated_at
 
 **societies**
 - id
@@ -625,10 +598,7 @@ Use a relational database such as PostgreSQL. All society-owned records must inc
 - currency
 - timezone
 - financial_year_start
-- status (`pending_verification`, `active`, `suspended`, `archived`)
-- annual_plan_id
-- max_members_limit (set by the annual subscription plan)
-- created_by_super_admin_id
+- status
 - created_at
 
 **society_memberships**
@@ -636,7 +606,7 @@ Use a relational database such as PostgreSQL. All society-owned records must inc
 - society_id
 - user_id
 - member_number
-- status (`active`, `suspended`, `inactive`, `left`)
+- status
 - joined_at
 - left_at
 - created_at
@@ -645,8 +615,8 @@ Unique constraint: `(society_id, user_id)` for the membership identity. If histo
 
 **roles**
 - id
-- society_id (null only for platform-level roles)
-- name (`President`, `Vice President`, `Secretary`, `Treasurer`, `Member`, etc.)
+- society_id (null only for platform roles)
+- name
 
 **permissions**
 - id
@@ -667,51 +637,25 @@ Unique constraint: `(society_id, user_id)` for the membership identity. If histo
 **invitations**
 - id
 - society_id
-- invited_email (must match the invitee's Google account email)
+- invited_email / invited_phone
 - intended_role_id
 - token_hash
 - invited_by
 - expires_at
 - accepted_at
 - revoked_at
-- status (`pending`, `accepted`, `expired`, `revoked`)
+- status
 
 Store a hash of the invitation token, not the raw token.
 
-### 7.2 Contributions and platform billing
-
-**platform_subscription_plans**
-- id
-- name (e.g. "Tier 1: Up to 50 Members", "Tier 2: Up to 150 Members", "Tier 3: Enterprise")
-- min_members
-- max_members
-- annual_price_minor
-- currency
-- is_active
-- created_at
-
-**platform_subscriptions**
-- id
-- society_id (the society is the billed customer)
-- plan_id
-- billing_cycle (`annual`)
-- member_capacity_limit
-- current_period_start
-- current_period_end
-- amount_paid_minor
-- payment_reference
-- status (`active`, `past_due`, `cancelled`, `expired`)
-- renewed_at
-- created_at
-
-Platform subscription payment records must be strictly isolated from society ledger postings.
+### 7.2 Contributions and billing
 
 **contribution_policies**
 - id
 - society_id
 - amount_minor
 - currency
-- frequency (monthly)
+- frequency
 - due_day
 - grace_period_days
 - late_fee_policy_id
@@ -729,23 +673,32 @@ Platform subscription payment records must be strictly isolated from society led
 - due_date
 - amount_due_minor
 - amount_paid_minor
-- status (`scheduled`, `due`, `pending`, `paid`, `overdue`, `waived`)
+- status
 
-Unique constraint prevents duplicate obligations for the same membership and policy period.
+Unique constraint should prevent duplicate obligations for the same membership and policy period.
 
 **payments**
 - id
-- society_id (nullable only for platform-level SaaS fee payment records)
+- society_id (nullable only for platform-level payment records)
 - payer_user_id
-- payment_scope (`society_contribution`, `loan_repayment`, `platform_subscription`)
+- payment_scope (`society_contribution`, `loan_repayment`, `platform_subscription`, etc.)
 - provider
 - provider_transaction_id
 - amount_minor
 - currency
-- status (`initiated`, `pending`, `confirmed`, `failed`, `refunded`)
+- status
 - idempotency_key
 - confirmed_at
 - metadata
+
+**platform_subscriptions**
+- id
+- society_id or payer_user_id, according to pricing model
+- plan_id
+- billing_period
+- status
+- current_period_start
+- current_period_end
 
 Platform subscription payment records must be isolated from society ledger postings.
 
@@ -979,30 +932,22 @@ Use strict access control and retention rules for audit data and personal inform
 
 All society-scoped endpoints must validate the authenticated user's membership and permission in the requested society. The society ID in a URL is not proof of authorization.
 
-### Authentication and public onboarding
-- `POST /auth/google` (Exchange Google OAuth token/code for platform session JWT)
-- `GET /auth/me` (Retrieve current user profile, active memberships, and super admin status)
-- `POST /onboarding-inquiries` (Public endpoint: Prospective society submits onboarding inquiry and verification document references)
+### Authentication and invitations
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/verify-contact`
+- `POST /societies/{societyId}/invitations`
+- `POST /invitations/{token}/accept`
+- `POST /societies/{societyId}/invitations/{invitationId}/revoke`
 
-### Platform administration (Super Admin only)
-- `GET /admin/onboarding-inquiries` (Review submitted society onboarding requests)
-- `PATCH /admin/onboarding-inquiries/{inquiryId}` (Approve, reject, or request information)
-- `POST /admin/societies` (Create vetted society, assign annual member-based subscription plan, provision initial admin)
-- `GET /admin/societies` (Directory of all societies, member counts, and annual subscription statuses)
-- `POST /admin/subscription-plans` (Manage annual pricing tiers based on member capacity)
-- `POST /admin/societies/{societyId}/subscriptions/renew` (Record annual SaaS subscription renewal)
-- `GET /admin/audit-logs` (Platform-wide audit trail)
-
-### Society and membership (Society-scoped)
-- `GET /societies` (List societies where the authenticated user has an active membership)
+### Society and membership
+- `POST /societies`
+- `GET /societies`
 - `GET /societies/{societyId}`
-- `PATCH /societies/{societyId}` (Update society display metadata; authorized committee only)
+- `PATCH /societies/{societyId}`
 - `GET /societies/{societyId}/members`
 - `PATCH /societies/{societyId}/members/{membershipId}/roles`
 - `PATCH /societies/{societyId}/members/{membershipId}/status`
-- `POST /societies/{societyId}/invitations` (Check member capacity against annual plan limit before creating)
-- `POST /invitations/{token}/accept` (Validate token against authenticated Google email)
-- `POST /societies/{societyId}/invitations/{invitationId}/revoke`
 
 ### Contributions and fund
 - `POST /societies/{societyId}/contribution-policies`
@@ -1040,64 +985,59 @@ These are logical endpoint examples, not a final API contract. Define request sc
 
 ```mermaid
 flowchart TD
-    subgraph Society Onboarding [Super Admin Controlled Onboarding]
-        S1[Society submits verification docs & member estimate] --> S2[Platform Super Admin verifies documents & KYC]
-        S2 --> S3[Super Admin creates society & assigns Annual Plan based on member count]
-        S3 --> S4[Super Admin provisions initial society admin credentials via Google email]
-    end
-
-    subgraph User & Society Interaction [Platform & Workspace Operations]
-        A[User visits platform] --> B[Sign in with Google Auth]
-        S4 --> B
-        B --> C{Has valid society invitation?}
-        C -- No --> D{Is Super Admin or assigned admin?}
-        D -- No --> E[Display onboarding inquiry form / no access]
-        D -- Yes --> F[Access Admin / Society Dashboard]
-        C -- Yes --> G[Verify invited Google email matches token]
-        G --> H[Accept invitation & create membership]
-        H --> F[Open society dashboard]
-        F --> I[Committee invites members up to annual plan limit]
-        I --> G
-        F --> J[Member pays monthly society contribution]
-        J --> K[Confirmed payment posted to society ledger]
-        K --> L[Update society fund & available loanable cash]
-        F --> M[Member applies for loan]
-        M --> N[Eligibility and committee approval]
-        N --> O[Approved FIFO queue]
-        L --> P[FIFO allocation engine]
-        O --> P
-        P --> Q{Funds & strict FIFO satisfied?}
-        Q -- No --> R[Remain queued / documented hold]
-        Q -- Yes --> S[Reserve funds & approve disbursement]
-        S --> T[Disburse loan & post ledger entries]
-        T --> U[Generate repayment schedule]
-        U --> V[Collect repayments via waterfall]
-        V --> W[Update loan balances & society ledger]
-        W --> X{Loan fully repaid?}
-        X -- No --> U
-        X -- Yes --> Y[Close loan and issue statement]
-    end
+    A[User visits platform] --> B[Create platform account / Sign in]
+    B --> C{Has valid society invitation?}
+    C -- No --> D[Can create a society if enabled]
+    C -- Yes --> E[Verify invited contact]
+    E --> F[Accept invitation]
+    F --> G[Create society membership]
+    D --> H[Create society workspace]
+    H --> I[Configure society and committee]
+    I --> J[Invite members]
+    J --> E
+    G --> K[Open society dashboard]
+    K --> L[Pay monthly society contribution]
+    L --> M[Confirmed payment posted to society ledger]
+    M --> N[Update society fund]
+    K --> O[Apply for loan]
+    O --> P[Eligibility and approval checks]
+    P --> Q[Approved FIFO queue]
+    N --> R[Calculate available loanable cash]
+    Q --> S[FIFO allocation engine]
+    R --> S
+    S --> T{Funds and eligibility satisfied?}
+    T -- No --> U[Remain queued / documented hold]
+    T -- Yes --> V[Reserve funds and obtain disbursement approval]
+    V --> W[Disburse loan and post ledger entries]
+    W --> X[Generate repayment schedule]
+    X --> Y[Collect repayments]
+    Y --> Z[Allocate principal and interest]
+    Z --> AA[Update loan and society ledger]
+    AA --> AB{Loan fully repaid?}
+    AB -- No --> X
+    AB -- Yes --> AC[Close loan and issue statement]
 ```
 
-### 11.2 Invitation and Google Auth membership flow
+### 11.2 Invitation and multi-society membership
 
 ```mermaid
 flowchart TD
-    A[Society officer selects Invite Member] --> B[Enter invitee Google email and intended role]
-    B --> C{Active members + pending invites < Annual Plan limit?}
-    C -- No --> D[Block invite: Prompt committee to upgrade annual plan with Super Admin]
-    C -- Yes --> E[Create single-use expiring invitation token]
-    E --> F[Send email invitation link]
-    F --> G[Invitee opens link]
-    G --> H[Authenticate with Google Auth]
-    H --> I{Google email matches invited email?}
-    I -- No --> J[Reject: Must sign in with invited Google account]
-    I -- Yes --> K{Token valid, unused, and unexpired?}
-    K -- No --> L[Reject invalid/expired invitation]
-    K -- Yes --> M{Already active member of this society?}
-    M -- Yes --> N[Redirect to existing society workspace]
-    M -- No --> O[Create society membership & assign role]
-    O --> P[Display society in user society switcher]
+    A[Society officer selects Invite Member] --> B[Enter email or phone and intended role]
+    B --> C[Create single-use expiring invitation]
+    C --> D[Send secure invitation]
+    D --> E[Invitee opens link]
+    E --> F{Existing platform account?}
+    F -- Yes --> G[Sign in]
+    F -- No --> H[Create platform account]
+    G --> I[Verify invited contact]
+    H --> I
+    I --> J{Token valid, unused, unexpired and contact matches?}
+    J -- No --> K[Reject and offer contact with society]
+    J -- Yes --> L{Already an active member of this society?}
+    L -- Yes --> M[Show existing membership; do not duplicate]
+    L -- No --> N[Create society-specific membership and role]
+    N --> O[Show society in user's society switcher]
+    O --> P[User can accept another society invitation]
 ```
 
 ### 11.3 Monthly contribution and fund workflow
@@ -1172,70 +1112,68 @@ flowchart TD
 
 ## 12. MVP scope and phased delivery
 
-### Phase 1 — Foundation, Super Admin onboarding, and Google Auth
-- Platform authentication via **Google Auth** (Google OAuth 2.0 / OpenID Connect)
-- Super Admin Portal for onboarding inquiry review, document verification, and society creation
-- Annual subscription plan configuration with member count capacity limits
-- Initial society administrator provisioning via authorized Google email
-- Society profile and committee setup (President, Vice President, Secretary, Treasurer)
-- Member invitations via Google email with member count capacity enforcement
-- Multi-society memberships and workspace switcher
-- Role-based permission checks and immutable audit logs
+### Phase 1 — Foundation and society membership
+- Platform authentication
+- Create society
+- Society profile and settings
+- President, Vice President, Secretary, Treasurer roles
+- Member invitations and secure acceptance
+- Multi-society memberships and society switcher
+- Permission checks and audit events
 
-**Exit criteria:** Only the Super Admin can create a society and assign an annual member limit. The provisioned society admin logs in via Google Auth, configures committee roles, and invites members up to the plan limit. An uninvited user cannot join any society.
+**Exit criteria:** An invited user can join one society, and the same user can join a second society without creating another platform account. An uninvited user cannot create a society membership.
 
 ### Phase 2 — Contributions and ledger
-- Contribution policy configuration (amount, monthly due date, grace period)
-- Monthly obligation generation engine
+- Contribution policy configuration
+- Monthly obligation generation
 - Payment integration or controlled manual receipt
-- Society double-entry ledger & fund balances (Cash vs. Available vs. Outstanding Principal)
-- Member statements & transaction history
+- Society ledger
+- Member statements
 - Fund summary and reconciliation
-- Platform annual SaaS subscription records isolated from society funds
+- Platform billing separated from society funds
 
-**Exit criteria:** A confirmed contribution appears exactly once in the correct society ledger, updates the fund balance, and does not affect any other society or platform revenues.
+**Exit criteria:** A confirmed contribution appears exactly once in the correct society ledger, changes the fund balance, and does not affect any other society.
 
 ### Phase 3 — Loans and FIFO
-- Loan policy configuration (interest rate, flat/reducing method, calculation convention, tenures)
-- Interest snapshotting upon loan creation
-- Loan application and committee approval workflow
-- Deterministic FIFO queue with queue visibility
-- Concurrency-safe fund reservation with database locks
-- Loan disbursement workflow
-- Repayment schedule generation, waterfall payment allocation, and statement download
+- Loan policy configuration
+- Interest rate and calculation method
+- Loan application and eligibility
+- Committee approval workflow
+- FIFO queue and queue visibility
+- Fund reservation
+- Loan disbursement
+- Repayment schedule and repayment posting
 
 **Exit criteria:** Under concurrent allocation attempts, the system never over-allocates society funds or funds a later eligible request ahead of an earlier request contrary to the published FIFO rule.
 
 ### Phase 4 — Operations and maturity
-- Automated reminders (email / SMS / in-app)
-- Advanced reporting and export registers (cash book, loan register, arrears)
-- Reconciliation dashboards for bank/payment gateways
-- Annual subscription renewal notifications and plan upgrades
+- Automated reminders
+- Advanced reporting
+- Reconciliation dashboards
 - Rescheduling and early settlement
 - Enhanced maker-checker controls
+- Exports and accounting integrations
+- Additional payment channels
 - Mobile app, if justified
 
 ---
 
 ## 13. Acceptance criteria
 
-### Society, Super Admin, and identity
-- Only Platform Super Admin can create a new society. Regular users cannot self-create societies.
-- Authentication occurs exclusively via Google Auth; the system automatically provisions/matches a user by their verified Google account.
-- A user can accept invitations from multiple societies under a single Google identity.
-- A user cannot join a society without a valid invitation matching their authenticated Google email.
-- Invitation tokens expire, are single-use, and are invalidated upon acceptance or revocation.
-- A society cannot invite or activate more members than permitted by its active annual subscription plan tier.
-- A user's role in one society grants no privileges in another society.
-- Complete tenant data isolation: Society A cannot view or access Society B's members, ledger, applications, loans, or reports.
+### Society and identity
+- A user can create one platform account and accept invitations from multiple societies.
+- A user cannot join a society without a valid invitation or explicitly approved exception.
+- Invitation tokens expire, are single-use, and cannot be accepted by a different verified contact.
+- A user's role in one society does not grant permissions in another society.
+- Society A cannot retrieve Society B's members, ledger, applications, loans, or reports.
 
 ### Contributions and fund
 - The system creates at most one contribution obligation per membership per billing period.
 - A duplicate payment webhook cannot post a duplicate contribution.
-- Annual platform subscription fees paid to the SaaS platform operator never enter or affect the society fund.
+- A platform subscription payment never increases the society fund.
 - A confirmed society contribution increases that society's cash balance exactly once.
-- The available loanable amount dynamically excludes reserved funds and other restricted amounts.
-- Ledger corrections preserve the original entry and create an auditable reversal entry.
+- The available loanable amount excludes reserved funds and other restricted/payable amounts.
+- Ledger corrections preserve the original entry and create an auditable reversal/correction.
 
 ### FIFO and loans
 - The queue has a deterministic order and displays both application and FIFO eligibility timestamps.
@@ -1257,10 +1195,9 @@ flowchart TD
 
 ## 14. Product metrics
 
-- Number of societies onboarded, verified, and activated by Super Admin
-- Percentage of invited users who accept invitations via Google Auth
-- Active members per society vs. annual subscription plan limits
-- Annual subscription renewal rate
+- Number of societies onboarded and activated
+- Percentage of invited users who accept invitations
+- Active members per society
 - Monthly contribution collection rate
 - On-time contribution rate
 - Payment failure and reconciliation rate
@@ -1272,6 +1209,7 @@ flowchart TD
 - Portfolio at risk / overdue principal
 - Loan closure rate
 - Number of ledger reconciliation exceptions
+- Platform subscription renewal rate
 
 Metrics should be segmented by society only for authorized platform operations and should not expose one society's private data to another.
 
@@ -1287,32 +1225,28 @@ Before enabling real-money collection or lending, obtain qualified legal, tax, a
 
 The platform should be designed so that the society remains the legally authorized owner/controller of its fund where that is the intended model, and the platform acts only in the role permitted by legal advice and contracts. Do not hold or commingle society money in the platform's operating account.
 
-### 15.2 Status of product decisions
+### 15.2 Open product decisions to resolve before implementation
 
-1. **Monthly payment vs. Platform fee:** **Resolved.** Members pay monthly society contributions into the society fund. The society pays an **annual SaaS subscription fee** to the platform operator.
-2. **Society creation & onboarding:** **Resolved.** Prospective societies submit verification documents; only the **Platform Super Admin** creates society accounts, configures the annual subscription tier, and provisions initial admin access.
-3. **Platform authentication:** **Resolved.** Unified **Google Auth** (Google OAuth 2.0 / OpenID Connect) is used for all users, administrators, and committee members.
-4. **Platform pricing model:** **Resolved.** **Annual subscription plan based on member count** (tiered capacity, e.g., up to 50 members, 51–100 members, etc.).
-5. **Fund custody:** Does the society receive funds directly into its own bank account, or will a licensed payment partner provide a compliant collection/settlement arrangement?
-6. **Contribution ownership:** Are contributions refundable member savings, non-refundable dues, share capital, or another legally defined category? This affects accounting and withdrawal rules.
-7. **FIFO start point:** Does queue priority begin at application submission or only after approval and eligibility? Recommended default: after complete approval and eligibility, while retaining the original submission timestamp.
-8. **Insufficient funds:** Strict all-or-nothing FIFO, member-consented partial allocation, or a different published policy? (Recommended default: strict all-or-nothing).
-9. **Approval governance:** How many approvals are required, and which roles can approve their own or related-party loan applications?
-10. **Interest method:** Flat or reducing balance? Annual or monthly nominal rate? What day-count convention and rounding rules apply?
-11. **Repayment waterfall:** In what order are fees, interest, and principal paid?
-12. **Late fees and defaults:** Are penalties allowed, how are they calculated, and who can waive them?
-13. **Member exit:** Can a member leave while they have an outstanding loan or unpaid contribution?
-14. **Loan eligibility:** Is eligibility based on tenure, contribution history, savings balance, guarantor, committee decision, or a combination?
-15. **Public transparency:** Which queue and fund figures should be visible to all members, and which should remain committee-only?
+1. **Monthly payment meaning:** Does every member pay a platform subscription fee, a society contribution, or both? Recommended: model both separately and decide who pays the platform subscription.
+2. **Fund custody:** Does the society receive funds directly into its own bank account, or will a licensed payment partner provide a compliant collection/settlement arrangement?
+3. **Contribution ownership:** Are contributions refundable member savings, non-refundable dues, share capital, or another legally defined category? This affects accounting and withdrawal rules.
+4. **FIFO start point:** Does queue priority begin at application submission or only after approval and eligibility? Recommended default: after complete approval and eligibility, while retaining the original submission timestamp.
+5. **Insufficient funds:** Strict all-or-nothing FIFO, member-consented partial allocation, or a different published policy?
+6. **Approval governance:** How many approvals are required, and which roles can approve their own or related-party loan applications?
+7. **Interest method:** Flat or reducing balance? Annual or monthly nominal rate? What day-count convention and rounding rules apply?
+8. **Repayment waterfall:** In what order are fees, interest, and principal paid?
+9. **Late fees and defaults:** Are penalties allowed, how are they calculated, and who can waive them?
+10. **Member exit:** Can a member leave while they have an outstanding loan or unpaid contribution?
+11. **Loan eligibility:** Is eligibility based on tenure, contribution history, savings balance, guarantor, committee decision, or a combination?
+12. **Platform pricing:** Does the platform charge per society, per member, or a combination? Who is responsible for payment?
+13. **Public transparency:** Which queue and fund figures should be visible to all members, and which should remain committee-only?
+14. **Society verification:** What documents and signatory verification are required before a society can handle real money?
 
 ### 15.3 Recommended defaults for an initial pilot
 
-- Platform access via Google Auth for seamless, secure identity management.
-- Super Admin-only society creation following manual/assisted KYC and document verification.
-- Annual SaaS subscription plan based on member count tiers billed to each society.
-- Separate platform subscription revenue entirely from society lending funds.
+- Separate platform subscription fees from society contributions.
 - Each society has its own bank/payment settlement arrangement, subject to legal review.
-- Invitation-only membership tied to the invitee's Google email.
+- Invitation-only membership.
 - One platform account with multiple society memberships.
 - Monthly contributions with configurable due dates and grace periods.
 - Treasurer records payments; a second authorized person approves manual adjustments and high-value disbursements.
