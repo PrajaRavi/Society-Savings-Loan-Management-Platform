@@ -2,7 +2,7 @@
 import pytest
 import asyncio
 from decimal import Decimal
-from sqlalchemy import BigInteger
+from sqlalchemy import Float
 from app.models import (
     Base,
     User,
@@ -61,25 +61,25 @@ def test_models_metadata_registered():
         assert table in registered_tables, f"Table '{table}' missing from Base.metadata"
 
 
-def test_monetary_columns_use_bigint():
-    """Architectural Law: All monetary columns must use BIGINT (integer minor units)."""
+def test_monetary_columns_use_float():
+    """Verify all monetary columns use Float datatype as requested."""
     # Check LedgerEntry
-    assert isinstance(LedgerEntry.__table__.columns["debit_minor"].type, BigInteger)
-    assert isinstance(LedgerEntry.__table__.columns["credit_minor"].type, BigInteger)
+    assert isinstance(LedgerEntry.__table__.columns["debit"].type, Float)
+    assert isinstance(LedgerEntry.__table__.columns["credit"].type, Float)
 
     # Check ContributionObligation & Policy
-    assert isinstance(ContributionPolicy.__table__.columns["amount_minor"].type, BigInteger)
-    assert isinstance(ContributionObligation.__table__.columns["amount_due_minor"].type, BigInteger)
-    assert isinstance(ContributionObligation.__table__.columns["amount_paid_minor"].type, BigInteger)
+    assert isinstance(ContributionPolicy.__table__.columns["amount"].type, Float)
+    assert isinstance(ContributionObligation.__table__.columns["amount_due"].type, Float)
+    assert isinstance(ContributionObligation.__table__.columns["amount_paid"].type, Float)
 
     # Check LoanApplication & Loan
-    assert isinstance(LoanApplication.__table__.columns["requested_amount_minor"].type, BigInteger)
-    assert isinstance(Loan.__table__.columns["principal_minor"].type, BigInteger)
-    assert isinstance(Loan.__table__.columns["outstanding_principal_minor"].type, BigInteger)
+    assert isinstance(LoanApplication.__table__.columns["requested_amount"].type, Float)
+    assert isinstance(Loan.__table__.columns["principal"].type, Float)
+    assert isinstance(Loan.__table__.columns["outstanding_principal"].type, Float)
 
     # Check Installments
-    assert isinstance(LoanInstallment.__table__.columns["principal_due_minor"].type, BigInteger)
-    assert isinstance(LoanInstallment.__table__.columns["interest_due_minor"].type, BigInteger)
+    assert isinstance(LoanInstallment.__table__.columns["principal_due"].type, Float)
+    assert isinstance(LoanInstallment.__table__.columns["interest_due"].type, Float)
 
 
 def test_exponential_backoff_bounds():
@@ -151,3 +151,20 @@ def test_retry_sync_eventual_success():
     result = flaky_sync()
     assert result == 42
     assert attempts == 2
+
+
+def test_alembic_configuration_and_head_revision():
+    """Verify Alembic is configured with valid migration directory and head revision."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from pathlib import Path
+
+    alembic_ini_path = Path(__file__).resolve().parent.parent / "alembic.ini"
+    assert alembic_ini_path.exists(), "alembic.ini not found"
+
+    alembic_cfg = Config(str(alembic_ini_path))
+    script = ScriptDirectory.from_config(alembic_cfg)
+    heads = script.get_heads()
+    assert len(heads) == 1, f"Expected 1 head revision, got {heads}"
+    assert heads[0] == "c61fb8f69534"
+

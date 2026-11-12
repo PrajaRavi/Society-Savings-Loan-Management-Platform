@@ -1,3 +1,6 @@
+```text
+->ledger account=>Systematic categorization of financial transactions to build financial statements (P&L, Balance Sheet).
+```
 # Society Savings & Loan Management Platform
 
 A multi-tenant Software-as-a-Service (SaaS) web platform designed for community-based savings and lending groups (Chamas, Bishis, Chit Funds, SACCOs, and Mutual Aid Societies).
@@ -88,4 +91,17 @@ Society/
 │   ├── tailwind.config.js
 │   └── vite.config.ts
 └── Docs/                            # PRD and Technical specifications
+```
+```mermaid
+erDiagram
+ users ||--o{ society_memberships : "has"
+      societies ||--o{ society_memberships : "contains"
+      societies ||--o{ roles : "defines"
+      societies ||--o{ invitations : "issues"
+      users ||--o{ invitations : "invites"
+
+      society_memberships ||--o{ membership_roles : "assigned"
+      roles ||--o{ membership_roles : "grants"
+      roles ||--o{ role_permissions : "contains"
+      permissions ||--o{ role_permissions : "belongs to"
 ```

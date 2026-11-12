@@ -98,12 +98,12 @@ INSERT INTO membership_roles (membership_id, role_id) VALUES
 ON CONFLICT DO NOTHING;
 
 -- 9. Default Policies for Greenwood Society
--- Monthly Contribution: ₹2,000 (200,000 paise)
-INSERT INTO contribution_policies (id, society_id, amount_minor, currency, frequency, due_day, grace_period_days, late_fee_minor, status) VALUES
-    ('10000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 200000, 'INR', 'MONTHLY', 5, 5, 10000, 'ACTIVE')
+-- Monthly Contribution: ₹2,000.00
+INSERT INTO contribution_policies (id, society_id, amount, currency, frequency, due_day, grace_period_days, late_fee, status) VALUES
+    ('10000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 2000.0, 'INR', 'MONTHLY', 5, 5, 100.0, 'ACTIVE')
 ON CONFLICT (id) DO NOTHING;
 
 -- Loan Policy: 8% Annual Reducing Balance, ₹10,000 to ₹100,000, 1-24 months
-INSERT INTO loan_policies (id, society_id, interest_rate, interest_period, interest_method, calculation_convention, min_amount_minor, max_amount_minor, min_tenure_months, max_tenure_months, allocation_rule, partial_allocation_allowed, status) VALUES
-    ('20000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 0.0800, 'ANNUAL', 'REDUCING_BALANCE', 'MONTHLY_AMORTIZATION', 1000000, 10000000, 1, 24, 'STRICT_FIFO', FALSE, 'ACTIVE')
+INSERT INTO loan_policies (id, society_id, interest_rate, interest_period, interest_method, calculation_convention, min_amount, max_amount, min_tenure_months, max_tenure_months, allocation_rule, partial_allocation_allowed, status) VALUES
+    ('20000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 0.0800, 'ANNUAL', 'REDUCING_BALANCE', 'MONTHLY_AMORTIZATION', 10000.0, 100000.0, 1, 24, 'STRICT_FIFO', FALSE, 'ACTIVE')
 ON CONFLICT (id) DO NOTHING;

@@ -1,10 +1,9 @@
 -- =============================================================================
 -- Society Savings & Loan Management Platform
 -- Consolidated Master Database Schema (DDL) & Read-Heavy Performance Indexes
--- (Mirror copy for Supabase SQL Editor)
+-- (Mirror copy for Supabase SQL Editor - Monetary columns as FLOAT / DOUBLE PRECISION)
 -- =============================================================================
 
--- Ensure cryptographic functions are enabled for UUID generation
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- -----------------------------------------------------------------------------
@@ -135,12 +134,12 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id UUID NOT NULL REFERENCES ledger_transactions(id) ON DELETE CASCADE,
     account_id UUID NOT NULL REFERENCES ledger_accounts(id) ON DELETE RESTRICT,
-    debit_minor BIGINT NOT NULL DEFAULT 0,
-    credit_minor BIGINT NOT NULL DEFAULT 0,
+    debit FLOAT NOT NULL DEFAULT 0.0,
+    credit FLOAT NOT NULL DEFAULT 0.0,
     currency VARCHAR(10) NOT NULL DEFAULT 'INR',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_positive_amounts CHECK (debit_minor >= 0 AND credit_minor >= 0),
-    CONSTRAINT chk_debit_or_credit CHECK ((debit_minor > 0 AND credit_minor = 0) OR (credit_minor > 0 AND debit_minor = 0))
+    CONSTRAINT chk_positive_amounts CHECK (debit >= 0.0 AND credit >= 0.0),
+    CONSTRAINT chk_debit_or_credit CHECK ((debit > 0.0 AND credit = 0.0) OR (credit > 0.0 AND debit = 0.0))
 );
 
 -- -----------------------------------------------------------------------------
@@ -150,12 +149,12 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
 CREATE TABLE IF NOT EXISTS contribution_policies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
-    amount_minor BIGINT NOT NULL,
+    amount FLOAT NOT NULL,
     currency VARCHAR(10) NOT NULL DEFAULT 'INR',
     frequency VARCHAR(50) NOT NULL DEFAULT 'MONTHLY',
     due_day INT NOT NULL DEFAULT 5,
     grace_period_days INT NOT NULL DEFAULT 5,
-    late_fee_minor BIGINT NOT NULL DEFAULT 0,
+    late_fee FLOAT NOT NULL DEFAULT 0.0,
     effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     effective_to TIMESTAMPTZ,
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
@@ -170,8 +169,8 @@ CREATE TABLE IF NOT EXISTS contribution_obligations (
     period_start DATE NOT NULL,
     period_end DATE NOT NULL,
     due_date DATE NOT NULL,
-    amount_due_minor BIGINT NOT NULL,
-    amount_paid_minor BIGINT NOT NULL DEFAULT 0,
+    amount_due FLOAT NOT NULL,
+    amount_paid FLOAT NOT NULL DEFAULT 0.0,
     status VARCHAR(50) NOT NULL DEFAULT 'DUE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_membership_period UNIQUE (membership_id, period_start, period_end)
@@ -184,7 +183,7 @@ CREATE TABLE IF NOT EXISTS payments (
     payment_scope VARCHAR(50) NOT NULL,
     provider VARCHAR(50) NOT NULL DEFAULT 'MANUAL',
     provider_transaction_id VARCHAR(100),
-    amount_minor BIGINT NOT NULL,
+    amount FLOAT NOT NULL,
     currency VARCHAR(10) NOT NULL DEFAULT 'INR',
     status VARCHAR(50) NOT NULL DEFAULT 'CONFIRMED',
     idempotency_key VARCHAR(100) UNIQUE,
@@ -216,8 +215,8 @@ CREATE TABLE IF NOT EXISTS loan_policies (
     interest_period VARCHAR(50) NOT NULL DEFAULT 'ANNUAL',
     interest_method VARCHAR(50) NOT NULL DEFAULT 'REDUCING_BALANCE',
     calculation_convention VARCHAR(50) NOT NULL DEFAULT 'MONTHLY_AMORTIZATION',
-    min_amount_minor BIGINT NOT NULL DEFAULT 500000,
-    max_amount_minor BIGINT NOT NULL DEFAULT 50000000,
+    min_amount FLOAT NOT NULL DEFAULT 5000.0,
+    max_amount FLOAT NOT NULL DEFAULT 500000.0,
     min_tenure_months INT NOT NULL DEFAULT 1,
     max_tenure_months INT NOT NULL DEFAULT 36,
     eligibility_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -234,7 +233,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
     society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
     membership_id UUID NOT NULL REFERENCES society_memberships(id) ON DELETE CASCADE,
     policy_id UUID REFERENCES loan_policies(id) ON DELETE SET NULL,
-    requested_amount_minor BIGINT NOT NULL,
+    requested_amount FLOAT NOT NULL,
     purpose TEXT,
     requested_tenure_months INT NOT NULL,
     submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -260,7 +259,7 @@ CREATE TABLE IF NOT EXISTS loan_reservations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
     loan_application_id UUID NOT NULL REFERENCES loan_applications(id) ON DELETE CASCADE,
-    amount_minor BIGINT NOT NULL,
+    amount FLOAT NOT NULL,
     reserved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE'
@@ -275,8 +274,8 @@ CREATE TABLE IF NOT EXISTS loans (
     society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
     membership_id UUID NOT NULL REFERENCES society_memberships(id) ON DELETE CASCADE,
     loan_application_id UUID UNIQUE REFERENCES loan_applications(id) ON DELETE SET NULL,
-    principal_minor BIGINT NOT NULL,
-    outstanding_principal_minor BIGINT NOT NULL,
+    principal FLOAT NOT NULL,
+    outstanding_principal FLOAT NOT NULL,
     interest_rate_snapshot NUMERIC(6, 4) NOT NULL,
     interest_period_snapshot VARCHAR(50) NOT NULL,
     interest_method_snapshot VARCHAR(50) NOT NULL,
@@ -293,12 +292,12 @@ CREATE TABLE IF NOT EXISTS loan_installments (
     loan_id UUID NOT NULL REFERENCES loans(id) ON DELETE CASCADE,
     installment_number INT NOT NULL,
     due_date DATE NOT NULL,
-    principal_due_minor BIGINT NOT NULL,
-    interest_due_minor BIGINT NOT NULL,
-    fees_due_minor BIGINT NOT NULL DEFAULT 0,
-    principal_paid_minor BIGINT NOT NULL DEFAULT 0,
-    interest_paid_minor BIGINT NOT NULL DEFAULT 0,
-    fees_paid_minor BIGINT NOT NULL DEFAULT 0,
+    principal_due FLOAT NOT NULL,
+    interest_due FLOAT NOT NULL,
+    fees_due FLOAT NOT NULL DEFAULT 0.0,
+    principal_paid FLOAT NOT NULL DEFAULT 0.0,
+    interest_paid FLOAT NOT NULL DEFAULT 0.0,
+    fees_paid FLOAT NOT NULL DEFAULT 0.0,
     status VARCHAR(50) NOT NULL DEFAULT 'DUE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_loan_installment UNIQUE (loan_id, installment_number)
@@ -309,10 +308,10 @@ CREATE TABLE IF NOT EXISTS loan_repayments (
     society_id UUID NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
     loan_id UUID NOT NULL REFERENCES loans(id) ON DELETE CASCADE,
     payment_id UUID REFERENCES payments(id) ON DELETE SET NULL,
-    amount_minor BIGINT NOT NULL,
-    principal_component_minor BIGINT NOT NULL DEFAULT 0,
-    interest_component_minor BIGINT NOT NULL DEFAULT 0,
-    fee_component_minor BIGINT NOT NULL DEFAULT 0,
+    amount FLOAT NOT NULL,
+    principal_component FLOAT NOT NULL DEFAULT 0.0,
+    interest_component FLOAT NOT NULL DEFAULT 0.0,
+    fee_component FLOAT NOT NULL DEFAULT 0.0,
     received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status VARCHAR(50) NOT NULL DEFAULT 'POSTED',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

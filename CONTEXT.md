@@ -32,16 +32,15 @@ To understand why the architecture is designed this way, keep these real-world a
 | **Double-Entry Ledger** | **Permanent Ink Cashbook** | Balances are never typed in pencil or edited directly. Every change is an immutable entry with equal debits and credits: money came from somewhere, and went somewhere. |
 | **Fair Loan Queue (FIFO)** | **Bank Counter Numbered Tokens** | Person #1 with Token #1 asks for ₹50,000. Person #2 with Token #2 asks for ₹20,000. If the drawer only has ₹30,000, **the teller waits for more funds to pay Person #1 first.** The system NEVER skips Person #1 just because Person #2 asked for less money. |
 | **Background Tasks** | **Restaurant Waiter & Kitchen Order Rail** | FastAPI is the waiter (acknowledges payments and returns HTTP responses in 50ms). Redis is the rotating ticket rail. Celery workers are the kitchen cooks in the back running heavy calculations, generating bills, and checking queues without freezing the front counter. |
-| **Read-Heavy Indexing** | **Library Catalog Search Tabs** | Instead of scanning 100,000 database rows one by one when users check balances, composite B-tree indexes act as instant index tabs, returning results in under 2 milliseconds. No migration chains needed—all live in one clean `schema.sql`. |
+| **Read-Heavy Indexing** | **Library Catalog Search Tabs** | Instead of scanning 100,000 database rows one by one when users check balances, composite B-tree indexes act as instant index tabs, returning results in under 2 milliseconds. Defined directly in SQLAlchemy models and managed via Alembic. |
 | **Dummy Auth System** | **Movie Set Actor Badges** | During local development, click a floating badge to wear the "President", "Treasurer", or "Member" badge. Test full RBAC workflows in 1 second without needing Google OAuth credentials or SMS OTPs. |
 
 ---
 
 ## 3. Non-Negotiable Business Rules & Architectural Laws
 
-1. **Integer Minor Currency Units Only:**
-   - Float/decimal arithmetic is strictly prohibited for monetary amounts.
-   - All amounts are stored as integers (`BIGINT`) in the smallest currency unit (e.g., paise for INR, cents for USD). `₹100.50` is stored as `10050`.
+1. **Monetary Datatype (FLOAT):**
+   - Monetary amounts are stored using standard floating-point precision (`FLOAT` / `DOUBLE PRECISION` in PostgreSQL, `sa.Float` in SQLAlchemy) across ledger accounts, contribution policies, and loan schedules.
 2. **Ledger-Derived Balances:**
    - Society available cash is **never an editable column**. It is computed dynamically from posted ledger entries:
      $$\text{Available Loanable Cash} = \text{Total Cash} - \text{Reserved Funds} - \text{Restricted Payables}$$
@@ -84,7 +83,7 @@ To understand why the architecture is designed this way, keep these real-world a
 
 ### Database & Storage Layer
 - **Platform:** Supabase (PostgreSQL 15+)
-- **Schema Management:** Single consolidated `schema.sql` (no incremental migration chains) + `init_db.py` runner script.
+- **Migrations & Schema Management:** Alembic `1.14.0` with SQLAlchemy `2.0.36` async engine (`alembic upgrade head`) and pure SQLAlchemy seed routines (`seed_data.py`).
 - **Object Storage:** Supabase Private Storage Bucket for loan attachments and identity documents.
 
 ### Asynchronous Background Task Queue
@@ -239,6 +238,8 @@ Society/
 ├── PRD.md                           # Original Product Requirements Document
 │
 ├── backend/
+│   ├── alembic/                 # Alembic migration revisions & env.py
+│   ├── alembic.ini              # Alembic migration configuration
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── deps.py              # Auth & RBAC FastAPI dependencies
@@ -263,9 +264,8 @@ Society/
 │   │   ├── services/                # Encapsulated domain logic (Ledger, FIFO, Loan)
 │   │   ├── tasks/                   # Celery application & worker tasks
 │   │   ├── db/
-│   │   │   ├── schema.sql           # Master DDL with composite indexes
-│   │   │   ├── seeds.sql            # Demo data
-│   │   │   └── init_db.py           # 1-click database bootstrap
+│   │   │   ├── seed_data.py         # Pure SQLAlchemy seed runner
+│   │   │   └── init_db.py           # 1-click database bootstrap (Alembic + seeds)
 │   │   └── main.py                  # FastAPI app entry point
 │   ├── tests/                       # Concurrency and ledger integrity tests
 │   ├── requirements.txt

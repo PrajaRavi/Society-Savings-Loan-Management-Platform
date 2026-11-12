@@ -1,11 +1,19 @@
 import React from 'react';
-import { Landmark, Bell, User, Menu } from 'lucide-react';
+import { Landmark, Bell, Menu } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
+  const { currentUser, activeDevUser, isLoading } = useAuth();
+
+  const displayName = currentUser?.full_name || activeDevUser?.full_name || 'Society Member';
+  const displayEmail = currentUser?.email || activeDevUser?.email || '';
+  const displayRole = activeDevUser?.role_title || 'Active Member';
+  const badgeIcon = activeDevUser?.avatar_badge || '👤';
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
       <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -35,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
         <div className="flex items-center space-x-4">
           <div className="hidden sm:flex items-center text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200">
             <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-            <span>Core Foundation Active</span>
+            <span>Auth v1.0 (RBAC Active)</span>
           </div>
 
           <button
@@ -47,12 +55,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
           </button>
 
           <div className="flex items-center pl-2 border-l border-gray-200 space-x-3">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold text-sm">
-              <User className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-lg select-none shadow-sm">
+              {badgeIcon}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-semibold text-gray-800 leading-tight">Platform Admin</p>
-              <p className="text-[11px] text-gray-500">admin@platform.local</p>
+              <div className="flex items-center space-x-1.5">
+                <p className="text-xs font-bold text-gray-800 leading-tight">
+                  {isLoading ? 'Loading...' : displayName}
+                </p>
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                  {displayRole}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-500 truncate max-w-[160px]">
+                {displayEmail}
+              </p>
             </div>
           </div>
         </div>

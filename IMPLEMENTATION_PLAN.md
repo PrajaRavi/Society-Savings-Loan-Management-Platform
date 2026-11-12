@@ -42,21 +42,22 @@ flowchart TD
 ---
 
 ## 2. `feature/database-schema-and-indexing`
-* **Objective:** Create the consolidated, production-ready database schema and high-performance read-heavy indexes without incremental migration clutter.
+* **Objective:** Create the production-ready database schema, Alembic migration engine, and high-performance read-heavy indexes with SQLAlchemy.
 * **Database Deliverables:**
-  - `backend/app/db/schema.sql` (mirrored in `supabase/schema.sql`):
-    - Tables: `users`, `societies`, `society_memberships`, `roles`, `permissions`, `invitations`, `ledger_accounts`, `ledger_transactions`, `ledger_entries`, `contribution_policies`, `contribution_obligations`, `payments`, `loan_policies`, `loan_applications`, `loan_approvals`, `loan_reservations`, `loans`, `loan_installments`, `loan_repayments`, `audit_logs`, `notifications`.
-    - All monetary amounts stored as `BIGINT` minor units (paise/cents).
-  - High-performance read indexes:
+  - `backend/alembic/`: Alembic migration environment with asyncpg driver and PostgreSQL engine support.
+    - Initial migration `c61fb8f69534_initial_schema.py` creating all 24 entity tables and 11 composite/partial indexes.
+    - Tables: `users`, `societies`, `society_memberships`, `roles`, `permissions`, `role_permissions`, `membership_roles`, `invitations`, `ledger_accounts`, `ledger_transactions`, `ledger_entries`, `contribution_policies`, `contribution_obligations`, `payments`, `platform_subscriptions`, `loan_policies`, `loan_applications`, `loan_approvals`, `loan_reservations`, `loans`, `loan_installments`, `loan_repayments`, `audit_logs`, `notifications`.
+    - All monetary amounts stored as `FLOAT` / `Float` datatype.
+  - High-performance read indexes defined in SQLAlchemy `__table_args__`:
     - Composite FIFO index: `idx_loan_apps_fifo_queue` on `(society_id, status, eligibility_at, fifo_sequence)` where `status = 'APPROVED_WAITING_FUNDS'`.
     - Arrears lookup index: `idx_obligations_society_status_due` on `(society_id, status, due_date)`.
     - Cashbook timeline index: `idx_ledger_tx_society_type_date` on `(society_id, transaction_type, effective_at DESC)`.
     - Multi-tenant lookup indexes: `idx_memberships_society_user` and `idx_memberships_society_status`.
-  - `backend/app/db/seeds.sql`: Test data seeding demo society, committee roles, and test users.
-  - `backend/app/db/init_db.py`: Script to connect to Supabase/PostgreSQL and apply `schema.sql` and `seeds.sql` in 1 command.
+  - `backend/app/db/seed_data.py`: Pure SQLAlchemy ORM seed script for demo society, committee roles, chart of accounts, and dev users.
+  - `backend/app/db/init_db.py`: Bootstrapper script to execute Alembic migrations (`alembic upgrade head`) and SQLAlchemy seed routines in 1 command.
   - `backend/app/core/database.py`: SQLAlchemy async engine and session factory (`async_sessionmaker`).
-  - `backend/app/models/`: SQLAlchemy 2.0 declarative models mapped 1:1 with the schema.
-* **Done Criteria:** Running `python app/db/init_db.py` creates all tables and indexes in PostgreSQL and confirms connection health.
+  - `backend/app/models/`: SQLAlchemy 2.0 declarative models mapped 1:1 with all tables and composite indexes.
+* **Done Criteria:** Running `alembic upgrade head` or `python app/db/init_db.py` creates all tables and indexes in PostgreSQL and confirms connection health.
 
 ---
 

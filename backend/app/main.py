@@ -3,6 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.api import api_router
 
+"""
+    openapi_url==> Specifies the endpoint where the raw OpenAPI schema (JSON format) is hosted. By default, this is at /openapi.json.
+
+    redoc_url==> Specifies the endpoint for the alternative ReDoc documentation interface. By default, this is at /redoc
+    
+    """
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
