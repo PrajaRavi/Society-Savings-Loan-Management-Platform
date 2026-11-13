@@ -13,7 +13,6 @@ class AuditLog(Base, UUIDPrimaryKeyMixin):
     __table_args__ = (
         Index("idx_audit_society_created", "society_id", text("created_at DESC")),
     )
-
     society_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("societies.id", ondelete="CASCADE"), nullable=True)
     actor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     action: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -24,6 +23,7 @@ class AuditLog(Base, UUIDPrimaryKeyMixin):
     reason: Mapped[Optional[str]] = mapped_column(Text)
     ip_address: Mapped[Optional[str]] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc), server_default=text("NOW()"))
+
 
 
 class Notification(Base, UUIDPrimaryKeyMixin):
